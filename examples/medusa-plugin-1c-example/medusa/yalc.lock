@@ -1,0 +1,9 @@
+{
+  "version": "v1",
+  "packages": {
+    "medusa-plugin-1c": {
+      "signature": "335f60debe9d791e55fd259da6780699",
+      "file": true
+    }
+  }
+}
