@@ -75,6 +75,7 @@
 		"node": ">=20"
 	},
 	"dependencies": {
-		"commerceml-parser": "^3.0.3"
+		"commerceml-parser": "^3.0.3",
+		"sluga": "^0.2.1"
 	}
 }

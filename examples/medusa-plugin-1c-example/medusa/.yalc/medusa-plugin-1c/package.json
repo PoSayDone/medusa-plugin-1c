@@ -48,7 +48,8 @@
 		"node": ">=20"
 	},
 	"dependencies": {
-		"commerceml-parser": "^3.0.3"
+		"commerceml-parser": "^3.0.3",
+		"sluga": "^0.2.1"
 	},
-	"yalcSig": "335f60debe9d791e55fd259da6780699"
+	"yalcSig": "598158d3668c4c48971ac074895a7002"
 }

@@ -42,6 +42,7 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
 		filename?: string;
 	};
 
+	// TODO: enable auth check
 	let oneCAuthValid = true;
 
 	if (type === "catalog") {
@@ -107,6 +108,7 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
 		filename?: string;
 	};
 
+	// TODO: enable auth check
 	let oneCAuthValid = true;
 
 	if (!oneCAuthValid) {
@@ -156,9 +158,23 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
 
 	try {
 		// TODO: Send success and only then start workflow
-		const { result } = await onecExchangeWorkflow(req.scope).run({
+		const { result, errors } = await onecExchangeWorkflow(req.scope).run({
 			input: { xmlBuffer: req.body as Buffer },
+			throwOnError: false,
 		});
+
+		if (errors.length > 0) {
+			logger.error(
+				`[1C Integration] File Upload: Errors occurred during workflow execution for ${filename}: ${JSON.stringify(errors)}`,
+			);
+			return sendPlainTextResponse(
+				res,
+				500,
+				`failure\nErrors occurred during file upload for ${filename}: ${errors.join(", ")}`,
+			);
+		}
+
+		logger.debug(JSON.stringify(result));
 
 		return sendPlainTextResponse(res, 200, "success");
 	} catch (error) {
