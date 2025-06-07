@@ -157,7 +157,6 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
 	);
 
 	try {
-		// TODO: Send success and only then start workflow
 		const { result, errors } = await onecExchangeWorkflow(req.scope).run({
 			input: { xmlBuffer: req.body as Buffer },
 			throwOnError: false,

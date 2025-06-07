@@ -16,6 +16,10 @@ import {
 } from "commerceml-parser-core";
 import slugify from "sluga";
 import { Readable } from "stream";
+import {
+	parseDictionaryOptions,
+	parseProductOptions,
+} from "../utils/product-utils";
 
 type ParseProductsStepInput = {
 	xmlBuffer: Buffer;
@@ -71,24 +75,42 @@ export const onecExchangeWorkflow = createWorkflow(
 				onecData,
 			},
 			(data) => {
+				const parsedOptions = parseDictionaryOptions(
+					data.onecData.properties,
+				);
 				return data.onecData.products.map((onecProduct) => {
+					const defaultOptions = [
+						{
+							title: "Default Option",
+							values: ["Default value"],
+						},
+					];
+
+					const [defaultAttributes, variantOptions, metadata] =
+						parseProductOptions(
+							onecProduct,
+							data.onecData.properties,
+						);
+
 					return {
 						title: onecProduct.name,
+						description: onecProduct.description,
 						handle: slugify(onecProduct.name),
 						external_id: onecProduct.id,
-						options: [
-							{
-								title: "Default option",
-								values: ["Default value"],
-							},
-						],
 						variants: [
 							{
 								title: "Default variant",
 								barcode: onecProduct.barcode,
 								sku: onecProduct.article,
+								options: variantOptions,
 							},
 						],
+						metadata: metadata,
+						options:
+							parsedOptions.length > 0
+								? parsedOptions
+								: defaultOptions,
+						...defaultAttributes,
 					} as CreateProductWorkflowInputDTO;
 				});
 			},
@@ -100,7 +122,6 @@ export const onecExchangeWorkflow = createWorkflow(
 			},
 		});
 
-		// TODO: Implement products transform and uploading to db
 		return new WorkflowResponse(onecData);
 	},
 );
