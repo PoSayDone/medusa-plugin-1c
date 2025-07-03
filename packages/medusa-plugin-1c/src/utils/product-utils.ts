@@ -66,8 +66,10 @@ export function parseProductOptions(
 
 			if (option.type === "Число") {
 				const numValue = parseFloat(rawValue.replace(",", "."));
+				// @ts-expect-error
 				if (!isNaN(numValue)) defaultAttrs[key] = numValue;
 			} else if (option.type === "Строка") {
+				// @ts-expect-error
 				defaultAttrs[key] = rawValue;
 			} else if (
 				option.type === "Справочник" &&
@@ -76,6 +78,7 @@ export function parseProductOptions(
 				const dictItem = option.dictionaryValues.find(
 					(d) => d.id === rawValue,
 				);
+				// @ts-expect-error
 				if (dictItem) defaultAttrs[key] = dictItem.value;
 			}
 
