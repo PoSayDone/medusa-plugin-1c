@@ -1,4 +1,7 @@
-import { CreateProductWorkflowInputDTO } from "@medusajs/framework/types";
+import {
+	CreateProductWorkflowInputDTO,
+	UpdateProductWorkflowInputDTO,
+} from "@medusajs/framework/types";
 import {
 	createStep,
 	createWorkflow,
@@ -6,7 +9,11 @@ import {
 	transform,
 	WorkflowResponse,
 } from "@medusajs/framework/workflows-sdk";
-import { createProductsWorkflow } from "@medusajs/medusa/core-flows";
+import {
+	createProductsWorkflow,
+	updateProductsWorkflow,
+	useQueryGraphStep,
+} from "@medusajs/medusa/core-flows";
 import { CommerceMlImportParser } from "commerceml-parser";
 import {
 	Classifier,
@@ -78,20 +85,61 @@ export const onecExchangeWorkflow = createWorkflow(
 	(input: ParseProductsStepInput) => {
 		const onecData = parseProductsStep(input);
 
-		const productsToCreate = transform(
+		const { data: stores } = useQueryGraphStep({
+			entity: "store",
+			fields: ["default_sales_channel_id"],
+		});
+
+		// @ts-ignore
+		const { data: shippingProfiles } = useQueryGraphStep({
+			entity: "shipping_profile",
+			fields: ["id"],
+			pagination: {
+				skip: 0,
+				take: 1,
+			},
+		}).config({ name: "shipping-profile" });
+
+		const externalIdsFilters = transform(
 			{
 				onecData,
 			},
 			(data) => {
+				return data.onecData.products.map((product) => `${product.id}`);
+			},
+		);
+
+		// @ts-ignore
+		const { data: existingProducts } = useQueryGraphStep({
+			entity: "product",
+			fields: ["id", "external_id", "variants.*"],
+			filters: {
+				// @ts-ignore
+				external_id: externalIdsFilters,
+			},
+		}).config({ name: "existing-products" });
+
+		const { productsToCreate, productsToUpdate } = transform(
+			{
+				existingProducts,
+				shippingProfiles,
+				stores,
+				onecData,
+			},
+			(data) => {
+				const productsToCreate: CreateProductWorkflowInputDTO[] = [];
+				const productsToUpdate: UpdateProductWorkflowInputDTO[] = [];
+
 				const parsedOptions = parseDictionaryOptions(
 					data.onecData.properties,
 					data.onecData.settings?.attributes,
 				);
-				return data.onecData.products.map((onecProduct) => {
+
+				data.onecData.products.forEach((onecProduct) => {
 					const defaultOptions = [
 						{
-							title: "Default Option",
-							values: ["Default value"],
+							title: "Default",
+							values: ["Default"],
 						},
 					];
 
@@ -102,7 +150,9 @@ export const onecExchangeWorkflow = createWorkflow(
 							data.onecData.settings?.attributes,
 						);
 
-					return {
+					const product:
+						| CreateProductWorkflowInputDTO
+						| UpdateProductWorkflowInputDTO = {
 						title: onecProduct.name,
 						description: onecProduct.description,
 						handle: slugify(onecProduct.name),
@@ -116,13 +166,31 @@ export const onecExchangeWorkflow = createWorkflow(
 							},
 						],
 						metadata: metadata,
-						options:
-							parsedOptions.length > 0
-								? parsedOptions
-								: defaultOptions,
 						...defaultAttributes,
-					} as CreateProductWorkflowInputDTO;
+					};
+
+					const existingProduct = data.existingProducts.find(
+						(p) => p.external_id === product.external_id,
+					);
+					if (existingProduct) {
+						product.id = existingProduct.id;
+					}
+
+					if (existingProducts) {
+						productsToUpdate.push(
+							product as UpdateProductWorkflowInputDTO,
+						);
+					} else {
+						productsToCreate.push(
+							product as CreateProductWorkflowInputDTO,
+						);
+					}
 				});
+
+				return {
+					productsToCreate,
+					productsToUpdate,
+				};
 			},
 		);
 
@@ -132,6 +200,14 @@ export const onecExchangeWorkflow = createWorkflow(
 			},
 		});
 
-		return new WorkflowResponse(onecData);
+		updateProductsWorkflow.runAsStep({
+			input: {
+				products: productsToUpdate,
+			},
+		});
+
+		return new WorkflowResponse({
+			input,
+		});
 	},
 );
