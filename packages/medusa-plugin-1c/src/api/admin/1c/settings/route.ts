@@ -1,29 +1,14 @@
 import type { MedusaRequest, MedusaResponse } from "@medusajs/framework/http";
+import OneCSettingsService from "../../../../modules/1c/service";
 
 export async function GET(req: MedusaRequest, res: MedusaResponse) {
-	const oneCService = req.scope.resolve("oneC");
-
-	// @ts-ignore
-	const [settings, count] = await oneCService.listAndCountOneCSettings();
-
-	if (count > 0) {
-		res.json(settings[0]);
-	} else {
-		res.json();
-	}
+	const oneCService: OneCSettingsService = req.scope.resolve("oneC");
+	const settings = await oneCService.getSettings();
+	res.json(settings);
 }
 
 export const PUT = async (req: MedusaRequest, res: MedusaResponse) => {
-	const oneCService = req.scope.resolve("oneC");
-	// @ts-ignore
-	const [settings, count] = await oneCService.listAndCountOneCSettings();
-	let post: unknown;
-	if (count > 0) {
-		// @ts-ignore
-		post = await oneCService.updateOneCSettings(req.body);
-	} else {
-		// @ts-ignore
-		post = await oneCService.createOneCSettings(req.body);
-	}
-	res.json(post);
+	const oneCService: OneCSettingsService = req.scope.resolve("oneC");
+	await oneCService.updateSettings(req.body);
+	res.json();
 };

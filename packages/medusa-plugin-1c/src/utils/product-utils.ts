@@ -15,7 +15,7 @@ type OtherOptions = Record<string, string>;
 
 export function parseDictionaryOptions(
 	options: ClassifierProperty[],
-	attributeMappings?: DefaultAttributes,
+	attributeMappings?: DefaultAttributes | null,
 ): CreateProductOptionDTO[] {
 	return options
 		.filter(

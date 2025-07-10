@@ -20,6 +20,8 @@ import {
 	parseDictionaryOptions,
 	parseProductOptions,
 } from "../utils/product-utils";
+import OneCSettingsService from "../modules/1c/service";
+import { ONE_C_MODULE } from "../modules/1c";
 
 type ParseProductsStepInput = {
 	xmlBuffer: Buffer;
@@ -55,11 +57,10 @@ const parseProductsStep = createStep(
 
 		await catalogImportParser.parse(Readable.from([buffer]));
 
-		const manager = container.resolve<EntityManager>("manager");
-		const oneCSettingsRepository = manager.getRepository(OneCSettings);
-		const settings = await oneCSettingsRepository.findOne({
-			where: {},
-		});
+		const OneCSettingsService: OneCSettingsService =
+			container.resolve(ONE_C_MODULE);
+
+		const settings = await OneCSettingsService.getSettings();
 
 		return new StepResponse({
 			// @ts-expect-error
