@@ -27,7 +27,7 @@ type ParseProductsStepInput = {
 
 const parseProductsStep = createStep(
 	"parse-products",
-	async ({ xmlBuffer }: ParseProductsStepInput) => {
+	async ({ xmlBuffer }: ParseProductsStepInput, { container }) => {
 		const buffer = Buffer.from((xmlBuffer as any).data);
 
 		const catalogImportParser = new CommerceMlImportParser();
@@ -55,12 +55,19 @@ const parseProductsStep = createStep(
 
 		await catalogImportParser.parse(Readable.from([buffer]));
 
+		const manager = container.resolve<EntityManager>("manager");
+		const oneCSettingsRepository = manager.getRepository(OneCSettings);
+		const settings = await oneCSettingsRepository.findOne({
+			where: {},
+		});
+
 		return new StepResponse({
 			// @ts-expect-error
 			classifier,
 			properties,
 			classifierGroups,
 			products,
+			settings,
 		});
 	},
 );
@@ -77,6 +84,7 @@ export const onecExchangeWorkflow = createWorkflow(
 			(data) => {
 				const parsedOptions = parseDictionaryOptions(
 					data.onecData.properties,
+					data.onecData.settings?.attributes,
 				);
 				return data.onecData.products.map((onecProduct) => {
 					const defaultOptions = [
@@ -90,6 +98,7 @@ export const onecExchangeWorkflow = createWorkflow(
 						parseProductOptions(
 							onecProduct,
 							data.onecData.properties,
+							data.onecData.settings?.attributes,
 						);
 
 					return {

@@ -35,6 +35,12 @@ function isAuthValid(req: MedusaRequest) {
 
 export async function GET(req: MedusaRequest, res: MedusaResponse) {
 	const logger = req.scope.resolve("logger");
+	const manager = req.scope.resolve<EntityManager>("manager");
+	const oneCSettingsRepository = manager.getRepository(OneCSettings);
+
+	const settings = await oneCSettingsRepository.findOne({
+		where: {},
+	});
 
 	const { type, mode, filename } = req.query as {
 		type?: string;
@@ -42,11 +48,30 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
 		filename?: string;
 	};
 
-	// TODO: enable auth check
 	let oneCAuthValid = true;
 
 	if (type === "catalog") {
 		if (mode != "checkauth") {
+			if (
+				!req.headers.authorization ||
+				!settings?.login ||
+				!settings?.password
+			) {
+				oneCAuthValid = false;
+			} else {
+				const [login, password] = Buffer.from(
+					req.headers.authorization.split(" ")[1],
+					"base64",
+				)
+					.toString()
+					.split(":");
+				if (
+					login !== settings.login ||
+					password !== settings.password
+				) {
+					oneCAuthValid = false;
+				}
+			}
 			if (!oneCAuthValid) {
 				logger.debug(
 					"[1C Integration] Init: Authentication failed (1C session cookie missing or invalid).",
@@ -75,8 +100,8 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
 
 			case "init":
 				logger.debug(`[1C Integration] Init`);
-				const zipSupported = "no";
-				const fileLimit = 1000 * 1024 * 1024;
+				const zipSupported = settings?.useZip ? "yes" : "no";
+				const fileLimit = settings?.chunkSize ?? 1000 * 1024 * 1024;
 				return sendPlainTextResponse(
 					res,
 					200,
@@ -108,7 +133,6 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
 		filename?: string;
 	};
 
-	// TODO: enable auth check
 	let oneCAuthValid = true;
 
 	if (!oneCAuthValid) {

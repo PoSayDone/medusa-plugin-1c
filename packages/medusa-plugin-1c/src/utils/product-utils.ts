@@ -1,16 +1,6 @@
 import { CreateProductOptionDTO } from "@medusajs/framework/types";
 import { Product, ClassifierProperty } from "commerceml-parser-core";
 
-const DEFAULT_ATTRIBUTE_IDS = {
-	height: "8cb50d27-260b-11e9-80c9-0cc47ab29cd1",
-	width: "729246b8-260b-11e9-80c9-0cc47ab29cd1",
-	length: "0ce59660-260b-11e9-80c9-0cc47ab29cd1",
-	weight: "38409b0c-29da-11e9-80c9-0cc47ab29cd1",
-	mid_code: "8d11c16f-1d64-11e9-80c9-0cc47ab29cd1",
-	hs_code: "", // replace with real ID if exists
-	origin_country: "3268183f-18fa-11e7-80c2-0cc47ab29cd1",
-};
-
 type DefaultAttributes = {
 	height?: number | undefined;
 	width?: number | undefined;
@@ -25,13 +15,14 @@ type OtherOptions = Record<string, string>;
 
 export function parseDictionaryOptions(
 	options: ClassifierProperty[],
+	attributeMappings?: DefaultAttributes,
 ): CreateProductOptionDTO[] {
 	return options
 		.filter(
 			(opt) =>
 				opt.type === "Справочник" &&
 				opt.dictionaryValues?.length &&
-				!Object.values(DEFAULT_ATTRIBUTE_IDS).includes(opt.id),
+				!Object.values(attributeMappings ?? {}).includes(opt.id),
 		)
 		.map((opt) => ({
 			title: opt.name,
@@ -42,6 +33,7 @@ export function parseDictionaryOptions(
 export function parseProductOptions(
 	product: Product,
 	options: ClassifierProperty[],
+	attributeMappings?: DefaultAttributes,
 ): [DefaultAttributes, DictionaryValues, OtherOptions] {
 	const optionMap = new Map<string, ClassifierProperty>();
 	options.forEach((opt) => optionMap.set(opt.id, opt));
@@ -57,7 +49,7 @@ export function parseProductOptions(
 		const rawValue = prop.values?.[0];
 		if (!rawValue) continue;
 
-		const isDefault = Object.entries(DEFAULT_ATTRIBUTE_IDS).find(
+		const isDefault = Object.entries(attributeMappings ?? {}).find(
 			([, id]) => id === prop.id,
 		);
 

@@ -11,35 +11,49 @@ import { useForm, FormProvider, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as zod from "zod";
 import { useState } from "react";
+import { sdk } from "../../lib/config";
+import { OneCSettings } from "../../types/one-c-settings";
+import { FieldError } from "../field-error";
+import { useQueryClient } from "@tanstack/react-query";
 
 const schema = zod.object({
-	interval: zod.number().optional(),
-	chunkSize: zod.number().optional(),
-	useZip: zod.boolean().optional(),
+	interval: zod.coerce.number().optional(),
+	chunkSize: zod.coerce.number().optional(),
+	useZip: zod.coerce.boolean().optional(),
 });
 
 const SyncSettingsForm = ({
+	settings,
 	open: openPassed,
 	setOpen: setOpenPassed,
 }: {
+	settings?: OneCSettings;
 	open?: boolean;
 	setOpen?: React.Dispatch<React.SetStateAction<boolean>>;
 }) => {
 	const [openDefault, setOpenDefault] = useState(false);
 	const open = openPassed ?? openDefault;
 	const setOpen = setOpenPassed ?? setOpenDefault;
+	const queryClient = useQueryClient();
 
 	const form = useForm<zod.infer<typeof schema>>({
 		defaultValues: {
-			interval: 0,
-			chunkSize: 10 * 1024 * 1024,
-			useZip: false,
+			interval: settings?.interval ?? 0,
+			chunkSize: settings?.chunkSize ?? 10 * 1024 * 1024,
+			useZip: settings?.useZip ?? false,
 		},
 		resolver: zodResolver(schema),
 	});
 
 	const handleSubmit = form.handleSubmit(async (data) => {
-		console.log(data);
+		try {
+			sdk.client.fetch("/admin/1c/settings", {
+				method: "PUT",
+				body: { ...settings, ...data },
+			});
+			setOpen(false);
+			queryClient.invalidateQueries({ queryKey: [] });
+		} catch {}
 	});
 
 	return (
@@ -75,7 +89,18 @@ const SyncSettingsForm = ({
 																Interval
 															</Label>
 														</div>
-														<Input {...field} />
+														<FieldError
+															error={
+																form.formState
+																	.errors
+																	.interval
+																	?.message
+															}
+														/>
+														<Input
+															type="number"
+															{...field}
+														/>
 													</div>
 												);
 											}}
@@ -94,7 +119,18 @@ const SyncSettingsForm = ({
 																Chunk Size
 															</Label>
 														</div>
-														<Input {...field} />
+														<FieldError
+															error={
+																form.formState
+																	.errors
+																	.chunkSize
+																	?.message
+															}
+														/>
+														<Input
+															type="number"
+															{...field}
+														/>
 													</div>
 												);
 											}}
@@ -112,6 +148,15 @@ const SyncSettingsForm = ({
 															>
 																Use zip
 															</Label>
+															<FieldError
+																error={
+																	form
+																		.formState
+																		.errors
+																		.useZip
+																		?.message
+																}
+															/>
 															<Switch
 																checked={
 																	field.value
