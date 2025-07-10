@@ -33,7 +33,7 @@ export function parseDictionaryOptions(
 export function parseProductOptions(
 	product: Product,
 	options: ClassifierProperty[],
-	attributeMappings?: DefaultAttributes,
+	attributeMappings?: DefaultAttributes | null,
 ): [DefaultAttributes, DictionaryValues, OtherOptions] {
 	const optionMap = new Map<string, ClassifierProperty>();
 	options.forEach((opt) => optionMap.set(opt.id, opt));
@@ -87,7 +87,6 @@ export function parseProductOptions(
 			}
 		}
 
-		// Fallback: treat as string option
 		otherOptions[option.name] = rawValue;
 	}
 
