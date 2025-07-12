@@ -64,10 +64,10 @@ const parseProductsStep = createStep(
 
 		await catalogImportParser.parse(Readable.from([buffer]));
 
-		const OneCSettingsService: OneCSettingsService =
+		const oneCSettingsService: OneCSettingsService =
 			container.resolve(ONE_C_MODULE);
 
-		const settings = await OneCSettingsService.getSettings();
+		const settings = await oneCSettingsService.getSettings();
 
 		return new StepResponse({
 			// @ts-expect-error

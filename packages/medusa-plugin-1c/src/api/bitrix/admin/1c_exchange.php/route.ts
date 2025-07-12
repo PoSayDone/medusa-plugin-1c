@@ -1,6 +1,8 @@
 import type { MedusaRequest, MedusaResponse } from "@medusajs/framework/http";
 import { MedusaError } from "@medusajs/utils";
 import { onecExchangeWorkflow } from "../../../../workflows/onec_exchange_workflow";
+import OneCSettingsService from "../../../../modules/1c/service";
+import { ONE_C_MODULE } from "../../../../modules/1c";
 
 const active1CSessions = new Map<string, string>();
 
@@ -35,12 +37,10 @@ function isAuthValid(req: MedusaRequest) {
 
 export async function GET(req: MedusaRequest, res: MedusaResponse) {
 	const logger = req.scope.resolve("logger");
-	const manager = req.scope.resolve<EntityManager>("manager");
-	const oneCSettingsRepository = manager.getRepository(OneCSettings);
+	const oneCSettingsService: OneCSettingsService =
+		req.scope.resolve(ONE_C_MODULE);
 
-	const settings = await oneCSettingsRepository.findOne({
-		where: {},
-	});
+	const settings = await oneCSettingsService.getSettings();
 
 	const { type, mode, filename } = req.query as {
 		type?: string;
@@ -109,7 +109,18 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
 				);
 
 			case "import":
-				// TODO: Implement import functionality, show progress based on running onec_exchange_workflow status
+				return sendPlainTextResponse(res, 200, `success`);
+
+			case "query":
+				logger.debug(`[1C Integration] Query: Export not implemented.`);
+				return sendPlainTextResponse(
+					res,
+					200,
+					`failure\nExport functionality (query mode) is not implemented yet.`,
+				);
+
+			case "success":
+				logger.debug(`[1C Integration] Success: Exchange completed.`);
 				return sendPlainTextResponse(res, 200, `success`);
 
 			default:
@@ -133,9 +144,7 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
 		filename?: string;
 	};
 
-	let oneCAuthValid = true;
-
-	if (!oneCAuthValid) {
+	if (!isAuthValid(req)) {
 		logger.debug(
 			"[1C Integration] File Upload (POST): Authentication failed (1C session cookie missing or invalid).",
 		);
