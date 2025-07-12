@@ -1,4 +1,5 @@
 import type { MedusaRequest, MedusaResponse } from "@medusajs/framework/http";
+import * as zlib from "zlib";
 import { MedusaError } from "@medusajs/utils";
 import { onecExchangeWorkflow } from "../../../../workflows/onec_exchange_workflow";
 import OneCSettingsService from "../../../../modules/1c/service";
@@ -137,6 +138,10 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
 
 export async function POST(req: MedusaRequest, res: MedusaResponse) {
 	const logger = req.scope.resolve("logger");
+	const oneCSettingsService: OneCSettingsService =
+		req.scope.resolve(ONE_C_MODULE);
+
+	const settings = await oneCSettingsService.getSettings();
 
 	const { type, mode, filename } = req.query as {
 		type?: string;
@@ -189,9 +194,29 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
 		`[1C Integration] File Upload: Received Content-Length: ${contentLength}. Actual body type: ${typeof req.body}, isBuffer: ${Buffer.isBuffer(req.body)}`,
 	);
 
+	let xmlBuffer = req.body as Buffer;
+
+	if (settings?.useZip) {
+		logger.debug(
+			`[1C Integration] File Upload: Decompressing zip file ${filename}.`,
+		);
+		try {
+			xmlBuffer = zlib.gunzipSync(xmlBuffer);
+		} catch (error) {
+			logger.error(
+				`[1C Integration] File Upload: Failed to decompress zip file ${filename}: ${error}`,
+			);
+			return sendPlainTextResponse(
+				res,
+				500,
+				`failure\nFailed to decompress file ${filename}.`,
+			);
+		}
+	}
+
 	try {
 		const { result, errors } = await onecExchangeWorkflow(req.scope).run({
-			input: { xmlBuffer: req.body as Buffer },
+			input: { xmlBuffer: xmlBuffer },
 			throwOnError: false,
 		});
 
