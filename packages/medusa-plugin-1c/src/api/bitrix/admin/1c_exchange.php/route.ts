@@ -5,7 +5,7 @@ import { onecExchangeWorkflow } from "../../../../workflows/onec_exchange_workfl
 import OneCSettingsService from "../../../../modules/1c/service";
 import { ONE_C_MODULE } from "../../../../modules/1c";
 
-const active1CSessions = new Map<string, string>();
+const active1CSessions = new Set<string>();
 
 function sendPlainTextResponse(
 	res: MedusaResponse,
@@ -17,20 +17,10 @@ function sendPlainTextResponse(
 }
 
 function isAuthValid(req: MedusaRequest) {
-	if (req.headers.cookie) {
-		const cookies = req.headers.cookie.split("; ");
-		for (const cookie of cookies) {
-			const parts = cookie.split("=");
-			const name = parts.shift()?.trim();
-			const value = parts.join("=")?.trim();
-			if (
-				name &&
-				value &&
-				active1CSessions.has(value) &&
-				active1CSessions.get(value) === name
-			) {
-				return true;
-			}
+	if (req.cookies["medusa_1c_session_id"]) {
+		const value = req.cookies["medusa_1c_session_id"];
+		if (active1CSessions.has(value)) {
+			return true;
 		}
 	}
 	return false;
@@ -49,31 +39,9 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
 		filename?: string;
 	};
 
-	let oneCAuthValid = true;
-
 	if (type === "catalog") {
 		if (mode != "checkauth") {
-			if (
-				!req.headers.authorization ||
-				!settings?.login ||
-				!settings?.password
-			) {
-				oneCAuthValid = false;
-			} else {
-				const [login, password] = Buffer.from(
-					req.headers.authorization.split(" ")[1],
-					"base64",
-				)
-					.toString()
-					.split(":");
-				if (
-					login !== settings.login ||
-					password !== settings.password
-				) {
-					oneCAuthValid = false;
-				}
-			}
-			if (!oneCAuthValid) {
+			if (!isAuthValid(req)) {
 				logger.debug(
 					"[1C Integration] Init: Authentication failed (1C session cookie missing or invalid).",
 				);
@@ -87,17 +55,55 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
 
 		switch (mode) {
 			case "checkauth":
-				const newCookieName = "medusa_1c_session_id";
-				const newCookieValue = `sess_${Date.now()}_${Math.random().toString(36).substring(2, 15)}`;
-				active1CSessions.set(newCookieValue, newCookieName);
-				logger.debug(
-					`[1C Integration] Checkauth: New session ${newCookieName}=${newCookieValue}`,
-				);
-				return sendPlainTextResponse(
-					res,
-					200,
-					`success\n${newCookieName}\n${newCookieValue}`,
-				);
+				let checkAuthValid = true;
+				if (
+					!req.headers.authorization ||
+					!settings?.login ||
+					!settings?.password
+				) {
+					checkAuthValid = false;
+				} else {
+					console.log(req.headers.authorization);
+					const [login, password] = Buffer.from(
+						req.headers.authorization.split(" ")[1],
+						"base64",
+					)
+						.toString()
+						.split(":");
+					console.log(login, password);
+					if (
+						login !== settings.login ||
+						password !== settings.password
+					) {
+						checkAuthValid = false;
+					}
+				}
+				if (!checkAuthValid) {
+					logger.debug(
+						"[1C Integration] Init: Authentication failed (Invalid login or password).",
+					);
+					return sendPlainTextResponse(
+						res,
+						401,
+						`failure\nAuthentication failed for ${mode}`,
+					);
+				} else {
+					const newCookieName = "medusa_1c_session_id";
+					const newCookieValue = `sess_${Date.now()}_${Math.random().toString(36).substring(2, 15)}`;
+					active1CSessions.add(newCookieValue);
+					logger.debug(
+						`[1C Integration] Checkauth: New session ${newCookieName}=${newCookieValue}`,
+					);
+					res.cookie(newCookieName, newCookieValue, {
+						httpOnly: true,
+						path: "/",
+					});
+					return sendPlainTextResponse(
+						res,
+						200,
+						`success\n${newCookieName}\n${newCookieValue}`,
+					);
+				}
 
 			case "init":
 				logger.debug(`[1C Integration] Init`);

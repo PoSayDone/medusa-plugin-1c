@@ -64,6 +64,14 @@ const OnecAdminPage = () => {
 					]}
 				/>
 				<SectionRow
+					title="Login"
+					value={formatValue(settings?.login)}
+				/>
+				<SectionRow
+					title="Password"
+					value={settings?.password ? "***" : "-"}
+				/>
+				<SectionRow
 					title="Step interval in seconds (0 - load in a single step)"
 					value={formatValue(settings?.interval)}
 				/>

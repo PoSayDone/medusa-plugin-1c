@@ -17,6 +17,8 @@ import { FieldError } from "../field-error";
 import { useQueryClient } from "@tanstack/react-query";
 
 const schema = zod.object({
+	login: zod.string().min(1).max(255),
+	password: zod.string().min(1).max(255),
 	interval: zod.coerce.number().optional(),
 	chunkSize: zod.coerce.number().optional(),
 	useZip: zod.coerce.boolean().optional(),
@@ -38,6 +40,8 @@ const SyncSettingsForm = ({
 
 	const form = useForm<zod.infer<typeof schema>>({
 		defaultValues: {
+			login: settings?.login ?? "",
+			password: settings?.password ?? "",
 			interval: settings?.interval ?? 0,
 			chunkSize: settings?.chunkSize ?? 10 * 1024 * 1024,
 			useZip: settings?.useZip ?? false,
@@ -75,6 +79,60 @@ const SyncSettingsForm = ({
 							<div className="flex flex-1 flex-col items-center overflow-y-auto">
 								<div className="mx-auto flex w-full flex-col">
 									<div className="flex flex-col gap-4">
+										<Controller
+											control={form.control}
+											name="login"
+											render={({ field }) => {
+												return (
+													<div className="flex flex-col space-y-2">
+														<div className="flex items-center gap-x-1">
+															<Label
+																size="small"
+																weight="plus"
+															>
+																Login
+															</Label>
+														</div>
+														<FieldError
+															error={
+																form.formState
+																	.errors
+																	.interval
+																	?.message
+															}
+														/>
+														<Input {...field} />
+													</div>
+												);
+											}}
+										/>
+										<Controller
+											control={form.control}
+											name="password"
+											render={({ field }) => {
+												return (
+													<div className="flex flex-col space-y-2">
+														<div className="flex items-center gap-x-1">
+															<Label
+																size="small"
+																weight="plus"
+															>
+																Password
+															</Label>
+														</div>
+														<FieldError
+															error={
+																form.formState
+																	.errors
+																	.interval
+																	?.message
+															}
+														/>
+														<Input {...field} />
+													</div>
+												);
+											}}
+										/>
 										<Controller
 											control={form.control}
 											name="interval"
