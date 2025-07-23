@@ -22,23 +22,24 @@ import {
 	ClassifierProperty,
 } from "commerceml-parser-core";
 import slugify from "sluga";
-import { Readable } from "stream";
+import { createReadStream } from "fs";
+import * as path from "path";
 import {
 	parseDictionaryOptions,
 	parseProductOptions,
 } from "../utils/product-utils";
 import OneCSettingsService from "../modules/1c/service";
 import { ONE_C_MODULE } from "../modules/1c";
+import { logger } from "@medusajs/framework";
 
-type ParseProductsStepInput = {
-	xmlBuffer: Buffer;
+type WorkflowInput = {
+	filePaths: string[];
 };
 
-const parseProductsStep = createStep(
-	"parse-products",
-	async ({ xmlBuffer }: ParseProductsStepInput, { container }) => {
-		const buffer = Buffer.from((xmlBuffer as any).data);
-
+const parseFilesStep = createStep(
+	"parse-files",
+	async ({ filePaths }: WorkflowInput, { container }) => {
+		const logger = container.resolve("logger");
 		const catalogImportParser = new CommerceMlImportParser();
 
 		const properties: ClassifierProperty[] = [];
@@ -62,7 +63,25 @@ const parseProductsStep = createStep(
 			products.push(p);
 		});
 
-		await catalogImportParser.parse(Readable.from([buffer]));
+		const importXmlPath = filePaths.find((p) =>
+			path.basename(p).includes("import.xml"),
+		);
+
+		try {
+			if (importXmlPath) {
+				logger.info(
+					`[1C Integration] Parsing import file: ${importXmlPath}`,
+				);
+				await catalogImportParser.parse(
+					createReadStream(importXmlPath),
+				);
+			}
+		} catch (e) {
+			logger.error(
+				`[1C Integration] Failed to parse files: ${e.message}`,
+			);
+			throw e;
+		}
 
 		const oneCSettingsService: OneCSettingsService =
 			container.resolve(ONE_C_MODULE);
@@ -82,8 +101,8 @@ const parseProductsStep = createStep(
 
 export const onecExchangeWorkflow = createWorkflow(
 	"sync-from-erp",
-	(input: ParseProductsStepInput) => {
-		const onecData = parseProductsStep(input);
+	(input: WorkflowInput) => {
+		const onecData = parseFilesStep(input);
 
 		const { data: stores } = useQueryGraphStep({
 			entity: "store",
@@ -109,7 +128,6 @@ export const onecExchangeWorkflow = createWorkflow(
 			},
 		);
 
-		// @ts-ignore
 		const { data: existingProducts } = useQueryGraphStep({
 			entity: "product",
 			fields: ["id", "external_id", "variants.*"],
@@ -134,6 +152,7 @@ export const onecExchangeWorkflow = createWorkflow(
 					data.onecData.properties,
 					data.onecData.settings?.attributes,
 				);
+				console.log(parsedOptions);
 
 				data.onecData.products.forEach((onecProduct) => {
 					const defaultOptions = [
@@ -165,18 +184,17 @@ export const onecExchangeWorkflow = createWorkflow(
 								options: variantOptions,
 							},
 						],
-						metadata: metadata,
+						metadata,
+						options: parsedOptions,
 						...defaultAttributes,
 					};
 
 					const existingProduct = data.existingProducts.find(
 						(p) => p.external_id === product.external_id,
 					);
+
 					if (existingProduct) {
 						product.id = existingProduct.id;
-					}
-
-					if (existingProducts) {
 						productsToUpdate.push(
 							product as UpdateProductWorkflowInputDTO,
 						);
@@ -200,6 +218,7 @@ export const onecExchangeWorkflow = createWorkflow(
 			},
 		});
 
+		logger.debug(productsToUpdate.length.toString());
 		updateProductsWorkflow.runAsStep({
 			input: {
 				products: productsToUpdate,
