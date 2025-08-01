@@ -1,5 +1,9 @@
 import { CreateProductOptionDTO } from "@medusajs/framework/types";
-import { Product, ClassifierProperty } from "commerceml-parser-core";
+import {
+	Product,
+	ClassifierProperty,
+	ClassifierGroup,
+} from "commerceml-parser-core";
 
 type DefaultAttributes = {
 	height?: number | undefined;
@@ -91,4 +95,22 @@ export function parseProductOptions(
 	}
 
 	return [defaultAttrs, dictValues, otherOptions];
+}
+
+export function flattenClassifierGroups(
+	groups: ClassifierGroup[],
+): ClassifierGroup[] {
+	const flatList: ClassifierGroup[] = [];
+
+	function traverse(currentGroups: ClassifierGroup[]) {
+		for (const group of currentGroups) {
+			flatList.push(group);
+			if (group.groups && group.groups.length > 0) {
+				traverse(group.groups);
+			}
+		}
+	}
+
+	traverse(groups);
+	return flatList;
 }
