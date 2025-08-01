@@ -5,10 +5,10 @@ export default defineMiddlewares({
 	routes: [
 		{
 			method: ["POST"],
-			matcher: "/bitrix/admin/1c_exchange.php",
+			matcher: "/onec/exchange",
 			middlewares: [
 				bodyParser.raw({
-					type: () => true, // catch all content types
+					type: () => true,
 					limit: "50mb",
 				}),
 			],

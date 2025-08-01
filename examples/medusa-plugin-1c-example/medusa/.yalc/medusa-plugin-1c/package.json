@@ -49,7 +49,8 @@
 	},
 	"dependencies": {
 		"commerceml-parser": "^3.0.3",
+		"lodash": "^4.17.21",
 		"sluga": "^0.2.1"
 	},
-	"yalcSig": "18c4b8fa679423b3b487a13f4c679ef5"
+	"yalcSig": "cc5509b906d6cb5665d34227664d7c74"
 }

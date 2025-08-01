@@ -3,9 +3,9 @@ import * as zlib from "zlib";
 import * as fs from "fs/promises";
 import * as path from "path";
 import { MedusaError } from "@medusajs/utils";
-import { onecExchangeWorkflow } from "../../../../workflows/onec_exchange_workflow";
-import OneCSettingsService from "../../../../modules/1c/service";
-import { ONE_C_MODULE } from "../../../../modules/1c";
+import { onecExchangeWorkflow } from "../../../workflows/onec_exchange_workflow";
+import OneCSettingsService from "../../../modules/1c/service";
+import { ONE_C_MODULE } from "../../../modules/1c";
 
 const active1CSessions = new Set<string>();
 const UPLOAD_DIR = path.join(process.cwd(), "uploads", "1c_exchange");
@@ -127,17 +127,17 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
 
 			case "init":
 				logger.debug(`[1C Integration] Init`);
-				// const sessionDir = path.join(UPLOAD_DIR, sessionId!);
-				// try {
-				// 	await fs.rm(sessionDir, { recursive: true, force: true });
-				// 	logger.debug(
-				// 		`[1C Integration] Cleaned up session directory: ${sessionDir}`,
-				// 	);
-				// } catch (error) {
-				// 	logger.error(
-				// 		`[1C Integration] Failed to clean up session directory ${sessionDir}: ${error}`,
-				// 	);
-				// }
+				const sessionDir = path.join(UPLOAD_DIR, sessionId!);
+				try {
+					await fs.rm(sessionDir, { recursive: true, force: true });
+					logger.debug(
+						`[1C Integration] Cleaned up session directory: ${sessionDir}`,
+					);
+				} catch (error) {
+					logger.error(
+						`[1C Integration] Failed to clean up session directory ${sessionDir}: ${error}`,
+					);
+				}
 
 				const zipSupported = settings?.useZip ? "yes" : "no";
 				const fileLimit = settings?.chunkSize ?? 1024 * 1024 * 100; // 100MB
@@ -310,8 +310,6 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
 		);
 		try {
 			fileBuffer = zlib.gunzipSync(fileBuffer);
-			// 1C often packs xml files inside a zip, the filename in query will be like import.xml
-			// but the uploaded file is a zip. We assume the content is the xml.
 		} catch (error) {
 			logger.error(
 				`[1C Integration] File Upload: Failed to decompress zip file ${filename}: ${error}`,
